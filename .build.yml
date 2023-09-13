@@ -1,11 +1,12 @@
 image: alpine/edge
 packages:
   - nodejs
+  - yarn
 artifacts:
   - obsidian-bibeltext-plugin.tar.gz
 tasks:
 - setup: |
-    npm install
+    yarn install
 - build: |
     npm build
 - package: |
