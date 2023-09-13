@@ -12,15 +12,10 @@ div.popover.hover-popover.bibeltext-popover {
 	--popover-height: auto;
 }
 
-span.indent {
-	width: 2.5em;
-	display: inline-block;
-}
-
 span.indented {
 	display: inline-block;
 	padding-left: 3em;
-	text-indent: -1em;
+	text-indent: -1.5em;
 }
 span.first.indented {
 	text-indent: -3em;
