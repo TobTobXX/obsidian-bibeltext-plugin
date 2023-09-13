@@ -14,8 +14,6 @@ export default class BibeltextPlugin extends Plugin {
 
 		new SpaceRemover(this, this.settings);
 
-		console.log(this.manifest.dir);
-
 		this.registerPostProcessors();
 	}
 
@@ -41,7 +39,7 @@ export default class BibeltextPlugin extends Plugin {
 				.forEach(async t => {
 					const human = await this.resolver.getDisplayText(t.getAttribute('tag') as string);
 					if (typeof human != 'string') { console.warn('Couldnt render bibeltext:', human.error); return; }
-					t.textContent = human;
+					t.innerHTML = human; // innerHTML to apply &nbsp;
 					// Overwrite the onclick listener so that search still works.
 					t.addEventListener('click', (e) => {
 						//@ts-ignore

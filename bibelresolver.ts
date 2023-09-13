@@ -1,23 +1,27 @@
+import { ApiProxy, ApiResponse } from "api-proxy";
 import { requestUrl, sanitizeHTMLToDom } from "obsidian";
 
 const BASE_URL = 'https://www.jw.org/de/bibliothek/bibel/studienbibel/buecher/json/html/';
 
+type BookInfo = ApiResponse['editionData']['books'][string];
+
 export interface ResolveError {
-	success: false,
-	error: 'Unknown Book' | 'Parsing';
+	success: false;
+	error: string;
 }
 
 export interface Bibeltext {
-	success: true,
-	ref: RefRange,
-	title: string,
-	markdown: string,
+	success: true;
+	ref: RefRange;
+	title: string;
+	citationVerseRange: string;
+	markdown: string;
 }
 
 interface BibeltextRef {
-	book: number,
-	chapter: number,
-	verse: number,
+	book: number;
+	chapter: number;
+	verse: number;
 }
 class RefRange {
 	first: BibeltextRef;
@@ -42,7 +46,7 @@ class RefRange {
 			.filter(([_nr, book]) => book.officialAbbreviation == bookStr)
 			.map(([nr, _book]) => nr)
 			.first();
-		if (!book) return { success: false, error: 'Unknown Book' };
+		if (!book) return { success: false, error: `Unknown Book: ${bookStr}` };
 
 		const chapterStr = parts.shift();
 		if (!chapterStr) return { success: false, error: 'Parsing' };
@@ -82,15 +86,22 @@ class RefRange {
 
 		return ref;
 	}
+
+	is() {
+	}
 }
 
 export class BibelResolver {
-	private bibeltextCache = new Map<RefRange, Bibeltext>();
+	private bibeltextCache = new Map<string, Bibeltext>();
 	static books: Promise<Map<number, BookInfo>>;
+	private proxy: ApiProxy = new ApiProxy();
 
 	public constructor() {
 		BibelResolver.books = (async () => {
+			console.debug('Unproxied API Request for 1001001');
 			const res: ApiResponse = await requestUrl(BASE_URL + '1001001').json;
+			if (res) console.info(`Request for 1001001 succeeded`);
+
 			const books = res.editionData.books;
 			const pairs: [number, BookInfo][] = Object.getOwnPropertyNames(books)
 				.map(n => [parseInt(n), books[n]]);
@@ -108,10 +119,9 @@ export class BibelResolver {
 			.filter(([nr, _book]) => nr == text.ref.first.book)
 			.map(([_nr, book]) => book.standardAbbreviation)
 			.first();
-		if (!human) return { success: false, error: 'Unknown Book' };
+		if (!human) return { success: false, error: `Unknown Book: ${tag}` };
 
-		human += ' ';
-		human += text.title.replace(/&nbsp;/g, ' ').split(' ').splice(1).join(' ');
+		human += ' ' + text.citationVerseRange;
 
 		return human;
 	}
@@ -121,13 +131,11 @@ export class BibelResolver {
 		//@ts-ignore
 		if (ref.error) return ref;
 
-		if (this.bibeltextCache.has(ref)) {
-			return this.bibeltextCache.get(ref) as Bibeltext;
+		if (this.bibeltextCache.has(ref.toRefNr())) {
+			return this.bibeltextCache.get(ref.toRefNr()) as Bibeltext;
 		}
 
-		console.debug('Resolving text:', ref.toRefNr(), ref);
-		// TODO: Batching?
-		const response: ApiResponse = await requestUrl(BASE_URL + ref.toRefNr()).json;
+		const response: ApiResponse = await this.proxy.request(ref.toRefNr());
 
 		const markdown = this.renterToMarkdown(response.ranges[ref.toRefNr()]);
 
@@ -135,10 +143,11 @@ export class BibelResolver {
 			success: true,
 			ref,
 			title: response.ranges[ref.toRefNr()].citation,
+			citationVerseRange: response.ranges[ref.toRefNr()].citationVerseRange,
 			markdown,
 		};
 
-		this.bibeltextCache.set(ref, text);
+		this.bibeltextCache.set(ref.toRefNr(), text);
 
 		return text;
 	}
@@ -208,52 +217,16 @@ export class BibelResolver {
 	}
 }
 
-
-
-interface ApiResponse {
-	ranges: {
-		[index: string]: {
-			citation: string;
-			html: string;
-			crossReferences: {
-				id: number,
-				source: string,
-				targets: {
-					vs: string,
-					standardCitation: string,
-					abbreviatedCitation: string,
-				}[];
-			}[];
-			verses: {
-				vsID: string,
-				bookNumber: number,
-				chapterNumber: number,
-				verseNumber: number,
-				standardCitation: string,
-				abbreviatedCitation: string,
-				content: string,
-			}[];
-		};
-	};
-	editionData: {
-		books: {
-			[index: string]: {
-				standardName: string;
-				standardAbbreviation: string;
-				officialAbbreviation: string;
-			};
-		};
-	};
-}
-
-type BookInfo = ApiResponse['editionData']['books'][string];
-
 const BOOK_NAME_CORRECTIONS: any = {
+	'1Chr': '1Ch',
+	'2Chr': '2Ch',
 	'1Ko': '1Kö',
 	'2Ko': '2Kö',
 	'Ro': 'Rö',
 	'1Kor': '1Ko',
 	'2Kor': '2Ko',
+	'1Tim': '1Ti',
+	'2Tim': '2Ti',
 	'1Joh': '1Jo',
 	'2Joh': '2Jo',
 	'3Joh': '3Jo',
