@@ -1,0 +1,13 @@
+image: alpine/edge
+packages:
+  - nodejs
+artifacts:
+  - obsidian-bibeltext-plugin.tar.gz
+tasks:
+- setup: |
+    npm install
+- build: |
+    npm build
+- package: |
+    tar -c manifest.json main.js styles.css | gzip > obsidian-bibeltext-plugin.tar.gz
+
