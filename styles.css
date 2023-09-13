@@ -6,3 +6,22 @@ available in the app when your plugin is enabled.
 If your plugin does not need CSS, delete this file.
 
 */
+
+div.popover.hover-popover.bibeltext-popover {
+	overflow: auto !important;
+	--popover-height: auto;
+}
+
+span.indent {
+	width: 2.5em;
+	display: inline-block;
+}
+
+span.indented {
+	display: inline-block;
+	padding-left: 3em;
+	text-indent: -1em;
+}
+span.first.indented {
+	text-indent: -3em;
+}
