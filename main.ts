@@ -2,6 +2,7 @@ import { App, HoverParent, HoverPopover, MarkdownRenderer, MarkdownView, Plugin 
 import { createSettings, Settings } from 'settings';
 import { BibelResolver } from 'bibelresolver';
 import { SpaceRemover } from 'space-remover';
+import { platform } from 'os';
 
 
 export default class BibeltextPlugin extends Plugin {
@@ -41,7 +42,7 @@ export default class BibeltextPlugin extends Plugin {
 					if (typeof human != 'string') { console.warn('Couldnt render bibeltext:', human.error); return; }
 					t.innerHTML = human; // innerHTML to apply &nbsp;
 					// Overwrite the onclick listener so that search still works.
-					t.addEventListener('click', (e) => {
+					this.registerDomEvent(t as HTMLElement, 'click', (e) => {
 						//@ts-ignore
 						this.app.internalPlugins.getEnabledPluginById('global-search')?.openGlobalSearch('tag:' + t.getAttribute('tag'));
 						e.stopImmediatePropagation();
@@ -54,9 +55,10 @@ export default class BibeltextPlugin extends Plugin {
 		let hoverListenerPP = this.registerMarkdownPostProcessor((element) => {
 			Array.from(element.querySelectorAll('a.bibeltext-tag'))
 				.map((t: Element) => t as HTMLElement)
-				.forEach((t) => this.registerDomEvent(t, 'mouseover', () => {
-					this.showPopup(t);
-				}));
+				.forEach((t) => {
+					this.registerDomEvent(t, 'mouseover', () => { this.showPopup(t) });
+					registerLongTouch(this, t, () => { this.showPopup(t) });
+				});
 		});
 		hoverListenerPP.sortOrder = 25; // Just higher than markerPP.
 	}
@@ -104,3 +106,22 @@ class BibeltextPopover extends HoverPopover {
 		MarkdownRenderer.render(app, content, targetEl as HTMLElement, '', this);
 	}
 }
+
+function registerLongTouch(plugin: Plugin, element: HTMLElement, callback: Function) {
+	let timer: number | null;
+
+	plugin.registerDomEvent(element, 'touchstart', () => {
+		timer = window.setTimeout(() => {
+			timer = null;
+			callback();
+		}, 500);
+	});
+
+	function cancel() {
+		if (timer) clearTimeout(timer);
+	}
+
+	plugin.registerDomEvent(element, 'touchend', cancel);
+	plugin.registerDomEvent(element, 'touchmove', cancel);
+}
+
