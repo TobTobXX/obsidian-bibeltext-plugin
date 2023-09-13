@@ -8,7 +8,7 @@ tasks:
 - setup: |
     yarn install
 - build: |
-    npm build
+    yarn run build
 - package: |
     tar -c manifest.json main.js styles.css | gzip > obsidian-bibeltext-plugin.tar.gz
 
