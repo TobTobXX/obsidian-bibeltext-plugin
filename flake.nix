@@ -2,7 +2,7 @@
 	description = "A simple webui for Ollama";
 
 	inputs = {
-		nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-24.05";
+		nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-25.11";
 		flake-utils.url = "github:numtide/flake-utils";
 	};
 	outputs = { self, nixpkgs, flake-utils }:
@@ -15,6 +15,7 @@
 						vscode-langservers-extracted
 						nodejs
 						nodePackages.typescript-language-server
+						typescript
 					];
 				};
 			}
