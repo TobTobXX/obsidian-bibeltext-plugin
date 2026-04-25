@@ -16,6 +16,7 @@
 main.ts            Plugin entry point, post-processors, popover rendering
 bibelresolver.ts   Tag parsing, verse resolution, Markdown conversion, caching
 api-proxy.ts       HTTP batching, retry logic
+books.ts           Static BOOKS_DATA table (book nr, tag abbr, display abbr); exports GERMAN_BOOKS and GERMAN_BOOK_ABBREVIATIONS
 settings.ts        Settings model (BehaviorSubject) + settings tab UI
 space-remover.ts   Post-processor: strips space before tags inside parentheses
 styles.css         Popover styles
@@ -37,7 +38,7 @@ bibeltextRendererPP (sortOrder 24)
   For each .bibeltext-tag:
     BibelResolver.getDisplayText(tag)
       → RefRange.fromTag()         parse #b/Book/Ch/Vs into book nr + chapter + verse
-      → BibelResolver.books        cached promise; fetches book list on first call
+                                   book nr resolved via static GERMAN_BOOKS map (books.ts)
       → proxy.request(refNr)       fetch verse data (batched, cached)
     Sets tag.innerHTML to human citation (e.g. "Joh 3:16")
     Overrides onclick → global search
@@ -134,7 +135,7 @@ Each target: `{ vs, standardCitation, abbreviatedCitation, category: { id, label
 
 ### `editionData.books[bookNr]` object
 
-The plugin only uses `officialAbbreviation` and `standardAbbreviation`. Additional fields available:
+The plugin no longer reads book metadata from the API — abbreviations are embedded statically in `books.ts`. This object is present in every response but is ignored. Available fields for reference:
 
 | Field | Type |
 |---|---|
@@ -153,7 +154,7 @@ The plugin only uses `officialAbbreviation` and `standardAbbreviation`. Addition
 ### Behaviour notes
 
 - The response key mirrors the requested ref exactly (e.g. request `19023000-19023200` → key is `19023000-19023200`, but `validRange` is `19023001-19023006`).
-- `editionData.books` is returned on every response and always contains all 66 books — the plugin bootstraps its book list by making a cheap one-verse request (`1001001`).
+- `editionData.books` is returned on every response and always contains all 66 books — the plugin ignores it and uses its own static table in `books.ts` instead.
 - The API does not paginate; all verses for a range are returned inline.
 
 ## API proxy (`api-proxy.ts`)

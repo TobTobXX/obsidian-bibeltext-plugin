@@ -25,7 +25,7 @@ The plugin will:
 #b/<Book>/<Chapter>/<Verse1>-<Verse2>
 ```
 
-Book abbreviations follow the German NWT Study Bible (e.g. `Mt`, `Jo`, `1Mo`, `Ps`, `Ro`/`Rö`). The plugin includes a correction map for common alternative spellings.
+Book abbreviations follow the German NWT Study Bible (e.g. `Mat`, `Joh`, `1Mo`, `Ps`, `Ro`). All 66 books are defined in a static table (`books.ts`).
 
 ## Data source
 
