@@ -10,7 +10,7 @@ If your plugin does not need CSS, delete this file.
 div.popover.hover-popover.bibeltext-popover {
 	overflow: auto !important;
 	--popover-height: auto;
-	--popover-width: auto;
+	--popover-width: 40em;
 }
 
 span.indented {
@@ -18,6 +18,7 @@ span.indented {
 	padding-left: 3em;
 	text-indent: -1.5em;
 }
+
 span.first.indented {
 	text-indent: -3em;
 }
