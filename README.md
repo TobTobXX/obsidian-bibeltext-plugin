@@ -29,14 +29,19 @@ Book abbreviations follow the German NWT Study Bible (e.g. `Mat`, `Joh`, `1Mo`, 
 
 ## Data source
 
-Verse text is fetched live from [jw.org](https://www.jw.org) (German NWT Study Bible). An internet connection is required. The API is not authenticated and the data is publicly accessible.
+Verse text is fetched from [jw.org](https://www.jw.org) (German NWT Study Bible). An internet connection is required for uncached verses. The API is not authenticated and the data is publicly accessible.
 
-## Settings
+Fetched verses are cached to disk and loaded on the next Obsidian start, so previously seen tags render instantly without a network call.
 
-| Setting | Default | Description |
-|---|---|---|
-| Remove formatting space | On | Strips the space in `( #b/...)` so the parenthesis sits flush against the citation |
-| Offline mode | Off | Not yet implemented |
+## Settings panel
+
+The settings panel exposes cache management:
+
+| Item | Description |
+|---|---|
+| Cache stats | Shows the number of cached entries and their estimated disk size |
+| Clear cache | Removes all cached verse data (will be re-fetched on next use) |
+| Build cache | Scans every Markdown file in the vault for Bible tags and pre-fetches them all |
 
 ## Development
 
@@ -51,5 +56,5 @@ The output lands in `dist/` (`main.js`, `manifest.json`, `styles.css`). Copy or 
 ## Known limitations
 
 - Only the German edition of the NWT Study Bible is supported (the API URL is hardcoded to `jw.org/de/...`)
-- Offline mode is exposed in settings but not implemented
 - Book abbreviations must match the JW.org API; unsupported abbreviations silently fail with a console warning
+- No retry logic in the API proxy — a failed network request is silently dropped

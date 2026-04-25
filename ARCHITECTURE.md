@@ -6,7 +6,7 @@
 |---|---|
 | Language | TypeScript 4.7 |
 | Bundler | esbuild 0.17 |
-| Reactive state | RxJS 7 (BehaviorSubject for settings) |
+| Reactive state | RxJS 7 (Subject/firstValueFrom in api-proxy) |
 | Host API | Obsidian Plugin API (`obsidian` package) |
 | External API | jw.org JSON/HTML Bible API (no auth) |
 
@@ -17,7 +17,7 @@ main.ts            Plugin entry point, post-processors, popover rendering
 bibelresolver.ts   Tag parsing, verse resolution, Markdown conversion, caching
 api-proxy.ts       HTTP batching, retry logic
 books.ts           Static BOOKS_DATA table (book nr, tag abbr, display abbr); exports GERMAN_BOOKS and GERMAN_BOOK_ABBREVIATIONS
-settings.ts        Settings model (BehaviorSubject) + settings tab UI
+settings.ts        Cache management settings tab (stats, clear, build cache)
 space-remover.ts   Post-processor: strips space before tags inside parentheses
 styles.css         Popover styles
 esbuild.config.mjs Build configuration — bundles to dist/
@@ -182,9 +182,18 @@ Range: 43003016-43003036  (John 3:16–36)
 Whole chapter: 19023000-19023200  (Psalm 23, verses 0–200)
 ```
 
-## Settings
+## Cache persistence
 
-Settings are stored via `plugin.saveData` / `plugin.loadData` (Obsidian's built-in per-plugin JSON store). Each setting is a `BehaviorSubject<boolean>`; subscribing to it auto-saves on every change.
+The verse cache (`BibelResolver.bibeltextCache`) is persisted to disk via `plugin.saveData` / `plugin.loadData` (Obsidian's built-in per-plugin JSON store). The saved object has a single `cache` key containing the map serialised as a plain object (`Record<string, Bibeltext>`).
+
+Save triggers:
+- **Debounced (5 s)** after every `bibeltextCache.set()` call — covers normal tag rendering
+- **Immediate** when the user clicks "Build cache" or "Clear cache" in the settings panel
+- **Best-effort on unload** — flushes anything the debounce had not yet fired
+
+On load, the saved cache is imported before any post-processors run, so previously cached tags render instantly without a network round-trip.
+
+The `space-remover` feature (strips the space in `( #b/...`) is always active and has no user-facing toggle.
 
 ## Build
 
