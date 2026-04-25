@@ -40,11 +40,24 @@ export class ApiProxy {
 	}
 
 	private async doRequest() {
-		const path = this.queue.splice(0, MAX_REFS).join(',');
+		const refs = this.queue.splice(0, MAX_REFS);
+		const path = refs.join(',');
+		const url = BASE_URL + path;
 
-		console.debug('Making API request for:', path);
-		const response: ApiResponse = await requestUrl(BASE_URL + path).json;
+		console.log(`[bibeltext] Fetching ${refs.length} ref(s): ${path}`);
+		let response: ApiResponse;
+		try {
+			response = await requestUrl(url).json;
+		} catch (err) {
+			console.error(`[bibeltext] Network request failed for refs [${path}]:`, err);
+			this.pendingRequest = false;
+			if (this.queue.length > 0) {
+				this.scheduleRequest();
+			}
+			return;
+		}
 
+		console.log(`[bibeltext] Response received — ${Object.keys(response.ranges).length} range(s) returned`);
 		this.resultSubject.next(response);
 		this.pendingRequest = false;
 

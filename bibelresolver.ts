@@ -192,7 +192,7 @@ export class BibelResolver {
 						content +=
 							`<span class="indented">${para.textContent}</span>`;
 					} else {
-						console.error("Unknown paragraph type");
+						console.error(`[bibeltext] Unknown paragraph type: "${para.className}"`);
 					}
 				});
 		});
