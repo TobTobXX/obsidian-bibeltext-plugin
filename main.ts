@@ -48,28 +48,43 @@ export default class BibeltextPlugin extends Plugin {
 			(element) => {
 				Array.from(element.querySelectorAll("a.bibeltext-tag"))
 					.forEach(async (t) => {
-						const human = await this.resolver.getDisplayText(
-							t.getAttribute("tag") as string,
-						);
-						if (typeof human != "string") {
+						const tagtext = t.getAttribute("tag") as string;
+						const bibeltext = await this.resolver.resolveText(tagtext);
+						if (!bibeltext.success) {
 							console.warn(
-								`[bibeltext] Couldn't render "${t.getAttribute("tag")}":`,
-								human.error,
+								`[bibeltext] Couldn't render "${tagtext}":`,
+								bibeltext.error,
 							);
 							return;
 						}
-						t.innerHTML = human; // innerHTML to apply &nbsp;
+						const abbr = await this.resolver.getDisplayText(tagtext);
+						if (typeof abbr != "string") {
+							console.warn(
+								`[bibeltext] Couldn't render "${tagtext}":`,
+								abbr.error,
+							);
+							return;
+						}
+						t.innerHTML = abbr; // innerHTML to apply &nbsp;
+						if (bibeltext.wolLink) {
+							t.setAttribute("data-wol", bibeltext.wolLink);
+						}
 						// Overwrite the onclick listener so that search still works.
 						this.registerDomEvent(
 							t as HTMLElement,
 							"click",
 							(e) => {
-								//@ts-ignore
-								this.app.internalPlugins.getEnabledPluginById(
-									"global-search",
-								)?.openGlobalSearch(
-									"tag:" + t.getAttribute("tag"),
-								);
+								const wolLink = t.getAttribute("data-wol");
+								if (wolLink) {
+									window.open(wolLink, "_blank");
+								} else {
+									//@ts-ignore
+									this.app.internalPlugins.getEnabledPluginById(
+										"global-search",
+									)?.openGlobalSearch(
+										"tag:" + tagtext,
+									);
+								}
 								e.stopImmediatePropagation();
 							},
 						);

@@ -16,6 +16,7 @@ export interface Bibeltext {
 	title: string;
 	citationVerseRange: string;
 	markdown: string;
+	wolLink?: string;
 }
 
 interface BibeltextRef {
@@ -84,7 +85,8 @@ class RefRange {
 		return ref;
 	}
 
-	is() {
+	isWholeChapter(): boolean {
+		return this.first.verse === 0 && this.last !== null;
 	}
 }
 
@@ -109,6 +111,22 @@ export class BibelResolver {
 
 		if (this.bibeltextCache.has(ref.toRefNr())) {
 			return this.bibeltextCache.get(ref.toRefNr()) as Bibeltext;
+		}
+
+		if (ref.isWholeChapter()) {
+			const abbr = GERMAN_BOOK_ABBREVIATIONS[ref.first.book];
+			if (!abbr) return { success: false, error: `Unknown Book: ${tag}` };
+			const wolLink = `https://wol.jw.org/de/wol/b/r10/lp-x/nwtsty/${ref.first.book}/${ref.first.chapter}`;
+			const chapterText: Bibeltext = {
+				success: true,
+				ref,
+				title: `${abbr}\u00a0${ref.first.chapter}`,
+				citationVerseRange: ref.first.chapter.toString(),
+				markdown: `### ${abbr}\u00a0${ref.first.chapter} ([WOL](${wolLink}))\n---`,
+				wolLink,
+			};
+			this.bibeltextCache.set(ref.toRefNr(), chapterText);
+			return chapterText;
 		}
 
 		const response: ApiResponse = await this.proxy.request(ref.toRefNr());
