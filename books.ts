@@ -1,88 +1,86 @@
-// Hardcoded mapping of user-facing book abbreviations to canonical Bible book numbers.
-// Book numbers follow the standard 1–66 order (Genesis=1 … Revelation=66).
-
-export const GERMAN_BOOKS: Record<string, number> = {
+// Single source of truth: [bookNumber, tagAbbreviation, displayAbbreviation]
+// - tagAbbreviation:     used in #b/ tags (e.g. #b/Joh/3/16)
+// - displayAbbreviation: jw.org standardAbbreviation, fetched once and embedded statically
+const BOOKS_DATA: [number, string, string][] = [
 	// Pentateuch
-	"1Mo": 1, // 1. Mose (Genesis)
-	"2Mo": 2, // 2. Mose (Exodus)
-	"3Mo": 3, // 3. Mose (Levitikus)
-	"4Mo": 4, // 4. Mose (Numeri)
-	"5Mo": 5, // 5. Mose (Deuteronomium)
-
+	[1,  "1Mo",  "1. Mo."],
+	[2,  "2Mo",  "2. Mo."],
+	[3,  "3Mo",  "3. Mo."],
+	[4,  "4Mo",  "4. Mo."],
+	[5,  "5Mo",  "5. Mo."],
 	// Historical books
-	"Jos": 6, // Josua
-	"Ri": 7, // Richter
-	"Ruth": 8, // Ruth
-	"1Sa": 9, // 1. Samuel
-	"2Sa": 10, // 2. Samuel
-	"1Ko": 11, // 1. Könige
-	"2Ko": 12, // 2. Könige
-	"1Chr": 13, // 1. Chronik
-	"2Chr": 14, // 2. Chronik
-	"Esr": 15, // Esra
-	"Neh": 16, // Nehemia
-	"Est": 17, // Ester
-
+	[6,  "Jos",  "Jos."],
+	[7,  "Ri",   "Ri."],
+	[8,  "Ruth", "Ruth"],
+	[9,  "1Sa",  "1. Sam."],
+	[10, "2Sa",  "2. Sam."],
+	[11, "1Ko",  "1. Kö."],
+	[12, "2Ko",  "2. Kö."],
+	[13, "1Chr", "1. Chr."],
+	[14, "2Chr", "2. Chr."],
+	[15, "Esr",  "Esra"],
+	[16, "Neh",  "Neh."],
+	[17, "Est",  "Esth."],
 	// Wisdom / poetry
-	"Hi": 18, // Hiob
-	"Ps": 19, // Psalmen
-	"Spr": 20, // Sprüche
-	"Pr": 21, // Prediger (Ecclesiastes)
-	"Hoh": 22, // Hohes Lied
-
+	[18, "Hi",   "Hiob"],
+	[19, "Ps",   "Ps."],
+	[20, "Spr",  "Spr."],
+	[21, "Pr",   "Pred."],
+	[22, "Hoh",  "Hoh."],
 	// Major prophets
-	"Jes": 23, // Jesaja
-	"Jer": 24, // Jeremia
-	"Kla": 25, // Klagelieder
-	"Hes": 26, // Hesekiel
-	"Dan": 27, // Daniel
-
+	[23, "Jes",  "Jes."],
+	[24, "Jer",  "Jer."],
+	[25, "Kla",  "Klag."],
+	[26, "Hes",  "Hes."],
+	[27, "Dan",  "Dan."],
 	// Minor prophets
-	"Hos": 28, // Hosea
-	"Joel": 29, // Joel
-	"Am": 30, // Amos
-	"Ob": 31, // Obadja
-	"Jona": 32, // Jona
-	"Mi": 33, // Micha
-	"Nah": 34, // Nahum
-	"Hab": 35, // Habakuk
-	"Ze": 36, // Zefanja
-	"Hag": 37, // Haggai
-	"Sach": 38, // Sacharja
-	"Mal": 39, // Maleachi
-
+	[28, "Hos",  "Hos."],
+	[29, "Joel", "Joel"],
+	[30, "Am",   "Am."],
+	[31, "Ob",   "Ob."],
+	[32, "Jona", "Jona"],
+	[33, "Mi",   "Mi."],
+	[34, "Nah",  "Nah."],
+	[35, "Hab",  "Hab."],
+	[36, "Ze",   "Zeph."],
+	[37, "Hag",  "Hag."],
+	[38, "Sach", "Sach."],
+	[39, "Mal",  "Mal."],
 	// Gospels & Acts
-	"Mat": 40, // Matthäus
-	"Mar": 41, // Markus
-	"Luk": 42, // Lukas
-	"Joh": 43, // Johannes
-	"Apg": 44, // Apostelgeschichte
-
+	[40, "Mat",  "Mat."],
+	[41, "Mar",  "Mar."],
+	[42, "Luk",  "Luk."],
+	[43, "Joh",  "Joh."],
+	[44, "Apg",  "Apg."],
 	// Pauline letters
-	"Ro": 45, // Römer
-	"1Kor": 46, // 1. Korinther
-	"2Kor": 47, // 2. Korinther
-	"Gal": 48, // Galater
-	"Eph": 49, // Epheser
-	"Php": 50, // Philipper
-	"Kol": 51, // Kolosser
-	"1Th": 52, // 1. Thessalonicher
-	"2Th": 53, // 2. Thessalonicher
-	"1Tim": 54, // 1. Timotheus
-	"2Tim": 55, // 2. Timotheus
-	"Tit": 56, // Titus
-	"Phm": 57, // Philemon
-
+	[45, "Ro",   "Röm."],
+	[46, "1Kor", "1. Kor."],
+	[47, "2Kor", "2. Kor."],
+	[48, "Gal",  "Gal."],
+	[49, "Eph",  "Eph."],
+	[50, "Php",  "Phil."],
+	[51, "Kol",  "Kol."],
+	[52, "1Th",  "1. Thes."],
+	[53, "2Th",  "2. Thes."],
+	[54, "1Tim", "1. Tim."],
+	[55, "2Tim", "2. Tim."],
+	[56, "Tit",  "Tit."],
+	[57, "Phm",  "Philem."],
 	// General letters
-	"Heb": 58, // Hebräer
-	"Jak": 59, // Jakobus
-	"1Pe": 60, // 1. Petrus
-	"2Pe": 61, // 2. Petrus
-	"1Joh": 62, // 1. Johannes
-	"2Joh": 63, // 2. Johannes
-	"3Joh": 64, // 3. Johannes
-	"Jud": 65, // Judas
-
+	[58, "Heb",  "Heb."],
+	[59, "Jak",  "Jak."],
+	[60, "1Pe",  "1. Pet."],
+	[61, "2Pe",  "2. Pet."],
+	[62, "1Joh", "1. Joh."],
+	[63, "2Joh", "2. Joh."],
+	[64, "3Joh", "3. Joh."],
+	[65, "Jud",  "Jud."],
 	// Prophecy
-	"Off": 66, // Offenbarung
-};
+	[66, "Off",  "Offb."],
+];
+
+export const GERMAN_BOOKS: Record<string, number> =
+	Object.fromEntries(BOOKS_DATA.map(([nr, tag]) => [tag, nr]));
+
+export const GERMAN_BOOK_ABBREVIATIONS: Record<number, string> =
+	Object.fromEntries(BOOKS_DATA.map(([nr, , abbr]) => [nr, abbr]));
