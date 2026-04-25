@@ -1,5 +1,6 @@
 import { ApiProxy, ApiResponse } from "api-proxy";
 import { requestUrl, sanitizeHTMLToDom } from "obsidian";
+import { GERMAN_BOOKS } from "books";
 
 const BASE_URL = 'https://www.jw.org/de/bibliothek/bibel/studienbibel/buecher/json/html/';
 
@@ -36,16 +37,9 @@ class RefRange {
 		const parts = tag.split('/');
 		if (parts.shift() != '#b') return { success: false, error: 'Parsing' };
 
-		let bookStr = parts.shift();
+		const bookStr = parts.shift();
 		if (!bookStr) return { success: false, error: 'Parsing' };
-		if (BOOK_NAME_CORRECTIONS[bookStr]) {
-			bookStr = BOOK_NAME_CORRECTIONS[bookStr] as string;
-		}
-		const books = (await BibelResolver.books);
-		const book = Array.from(books.entries())
-			.filter(([_nr, book]) => book.officialAbbreviation == bookStr)
-			.map(([nr, _book]) => nr)
-			.first();
+		const book = GERMAN_BOOKS[bookStr];
 		if (!book) return { success: false, error: `Unknown Book: ${bookStr}` };
 
 		const chapterStr = parts.shift();
@@ -217,18 +211,4 @@ export class BibelResolver {
 	}
 }
 
-const BOOK_NAME_CORRECTIONS: any = {
-	'1Chr': '1Ch',
-	'2Chr': '2Ch',
-	'1Ko': '1Kö',
-	'2Ko': '2Kö',
-	'Ro': 'Rö',
-	'1Kor': '1Ko',
-	'2Kor': '2Ko',
-	'1Tim': '1Ti',
-	'2Tim': '2Ti',
-	'1Joh': '1Jo',
-	'2Joh': '2Jo',
-	'3Joh': '3Jo',
-};
 
