@@ -1,86 +1,84 @@
-import { Plugin, PluginSettingTab, Setting, ToggleComponent } from 'obsidian';
-import { BehaviorSubject, } from 'rxjs';
+import { Plugin, PluginSettingTab, Setting, TFile } from 'obsidian';
+import { BibelResolver } from 'bibelresolver';
 
-const DEFAULTS = {
-	removeFormattingSpace: true,
-	offlineMode: false,
-};
-
-export async function createSettings(plugin: Plugin): Promise<Settings> {
-	const { removeFormattingSpace, offlineMode } = await plugin.loadData() ?? DEFAULTS;
-
-	const manager = new SettingsManager(plugin, { removeFormattingSpace, offlineMode });
-
-	return manager;
+export async function createSettings(plugin: Plugin, resolver: BibelResolver): Promise<void> {
+	plugin.addSettingTab(new SettingsTab(plugin, resolver));
 }
-
-export interface Settings {
-	removeFormattingSpace: BehaviorSubject<boolean>;
-	offlineMode: BehaviorSubject<boolean>;
-}
-
-class SettingsManager implements Settings {
-	removeFormattingSpace: BehaviorSubject<boolean>;
-	offlineMode: BehaviorSubject<boolean>;
-
-	private plugin: Plugin;
-
-	constructor(plugin: Plugin, initalData: { removeFormattingSpace: boolean, offlineMode: boolean }) {
-		this.removeFormattingSpace = new BehaviorSubject(initalData.removeFormattingSpace);
-		this.offlineMode = new BehaviorSubject(initalData.offlineMode);
-
-		this.plugin = plugin;
-
-		this.removeFormattingSpace.subscribe(this.saveData.bind(this));
-		this.offlineMode.subscribe(this.saveData.bind(this));
-
-		plugin.addSettingTab(new SettingsTab(plugin, this));
-	}
-
-	private saveData() {
-		this.plugin.saveData({
-			removeFormattingSpace: this.removeFormattingSpace.getValue(),
-			offlineMode: this.offlineMode.getValue(),
-		});
-	}
-}
-
 
 class SettingsTab extends PluginSettingTab {
-	private settings: Settings;
+	private resolver: BibelResolver;
 
-	constructor(plugin: Plugin, settings: Settings) {
+	constructor(plugin: Plugin, resolver: BibelResolver) {
 		super(plugin.app, plugin);
-		this.settings = settings;
+		this.resolver = resolver;
 	}
 
 	display(): void {
-		this.containerEl.empty();
+		const { containerEl } = this;
+		containerEl.empty();
 
-		new Setting(this.containerEl)
-			.setName('Remove formatting space')
-			.setDesc('Whether to remove a space between an opening parenthesis and a tag.')
-			.addToggle(toggle => toggle
-				.setValue(this.settings.removeFormattingSpace.getValue())
-				.onChange(value => {
-					this.settings.removeFormattingSpace.next(value);
+		const stats = this.resolver.getCacheStats();
+		const mb = (stats.bytes / 1024 / 1024).toFixed(2);
+
+		new Setting(containerEl)
+			.setName('Cache')
+			.setDesc(`${stats.entries} entries · ~${mb} MB`);
+
+		new Setting(containerEl)
+			.setName('Clear cache')
+			.setDesc('Remove all cached verse data. It will be re-fetched on next use.')
+			.addButton(btn => btn
+				.setButtonText('Clear')
+				.onClick(() => {
+					this.resolver.clearCache();
+					this.display();
 				})
 			);
 
-		let offlineSetting = new Setting(this.containerEl)
-			.setName('Download the bible for offline use')
-			.addToggle(toggle => toggle
-				.setValue(this.settings.offlineMode.getValue())
-				.onChange(value => {
-					this.settings.offlineMode.next(value);
-				})
-			);
+		let scanStatusEl: HTMLElement;
 
-		this.settings.offlineMode.subscribe((value) => {
-			let message = value
-				? 'Disabling this setting will delete the downloaded Bible to save ~TODO MB storage'
-				: 'Enabling will start downloading the bible.';
-			offlineSetting.setDesc(message);
-		});
+		const scanSetting = new Setting(containerEl)
+			.setName('Scan for uncached tags')
+			.setDesc('Find all Bible tags in your vault and pre-fetch their content.')
+			.addButton(btn => {
+				btn.setButtonText('Scan').onClick(async () => {
+					btn.setDisabled(true);
+					btn.setButtonText('Scanning…');
+					await this.scanAndCache(scanStatusEl);
+					btn.setDisabled(false);
+					btn.setButtonText('Scan');
+					this.display();
+				});
+			});
+
+		scanStatusEl = scanSetting.descEl.createEl('div');
+	}
+
+	private async scanAndCache(statusEl: HTMLElement): Promise<void> {
+		const files: TFile[] = this.app.vault.getMarkdownFiles();
+		const tagRegex = /#b\/\w+\/\d+(?:\/[\d-]+)?/g;
+		const allTags = new Set<string>();
+
+		for (const file of files) {
+			const content = await this.app.vault.cachedRead(file);
+			const matches = content.match(tagRegex);
+			if (matches) matches.forEach(t => allTags.add(t));
+		}
+
+		const tags = Array.from(allTags);
+		let fetched = 0;
+		let failed = 0;
+
+		for (let i = 0; i < tags.length; i++) {
+			statusEl.setText(`Fetching ${i + 1}/${tags.length}…`);
+			const result = await this.resolver.resolveText(tags[i]);
+			if (result.success) fetched++;
+			else failed++;
+		}
+
+		const summary = failed > 0
+			? `Done: ${fetched} fetched, ${failed} failed.`
+			: `Done: ${fetched} tags fetched.`;
+		statusEl.setText(summary);
 	}
 }

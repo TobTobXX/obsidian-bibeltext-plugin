@@ -94,6 +94,18 @@ export class BibelResolver {
 	private bibeltextCache = new Map<string, Bibeltext>();
 	private proxy: ApiProxy = new ApiProxy();
 
+	public getCacheStats(): { entries: number; bytes: number } {
+		let bytes = 0;
+		for (const [key, value] of this.bibeltextCache) {
+			bytes += JSON.stringify(key).length + JSON.stringify(value).length;
+		}
+		return { entries: this.bibeltextCache.size, bytes };
+	}
+
+	public clearCache(): void {
+		this.bibeltextCache.clear();
+	}
+
 	public async getDisplayText(tag: string): Promise<string | ResolveError> {
 		const text = await this.resolveText(tag);
 		if (!text.success) return text;

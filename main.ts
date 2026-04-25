@@ -6,20 +6,19 @@ import {
 	MarkdownView,
 	Plugin,
 } from "obsidian";
-import { createSettings, Settings } from "settings";
+import { createSettings } from "settings";
 import { BibelResolver } from "bibelresolver";
 import { SpaceRemover } from "space-remover";
 import { platform } from "os";
 
 export default class BibeltextPlugin extends Plugin {
-	private settings: Settings;
 	private resolver: BibelResolver;
 
 	async onload() {
-		this.settings = await createSettings(this);
 		this.resolver = new BibelResolver();
+		await createSettings(this, this.resolver);
 
-		new SpaceRemover(this, this.settings);
+		new SpaceRemover(this);
 
 		this.registerPostProcessors();
 	}
