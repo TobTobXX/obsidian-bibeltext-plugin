@@ -5,6 +5,7 @@ import {
 	MarkdownRenderer,
 	MarkdownView,
 	Plugin,
+	debounce,
 } from "obsidian";
 import { createSettings } from "settings";
 import { BibelResolver } from "bibelresolver";
@@ -15,14 +16,23 @@ export default class BibeltextPlugin extends Plugin {
 
 	async onload() {
 		this.resolver = new BibelResolver();
-		await createSettings(this, this.resolver);
+
+		const saved = await this.loadData() ?? {};
+		if (saved.cache) this.resolver.importCache(saved.cache);
+
+		const saveCache = () => this.saveData({ cache: this.resolver.exportCache() });
+		this.resolver.setOnCacheWrite(debounce(saveCache, 5000, true));
+
+		await createSettings(this, this.resolver, saveCache);
 
 		new SpaceRemover(this);
-
 		this.registerPostProcessors();
 	}
 
 	onunload(): void {
+		// Best-effort save of any entries not yet flushed by the debounce.
+		this.saveData({ cache: this.resolver.exportCache() });
+
 		this.app.workspace.getLeavesOfType("markdown")
 			.map((l) => l.view as MarkdownView)
 			.forEach((v) => v.previewMode.rerender(true));

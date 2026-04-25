@@ -93,17 +93,33 @@ class RefRange {
 export class BibelResolver {
 	private bibeltextCache = new Map<string, Bibeltext>();
 	private proxy: ApiProxy = new ApiProxy();
+	private onCacheWrite?: () => void;
+
+	public setOnCacheWrite(fn: () => void): void {
+		this.onCacheWrite = fn;
+	}
 
 	public getCacheStats(): { entries: number; bytes: number } {
 		let bytes = 0;
-		for (const [key, value] of this.bibeltextCache) {
-			bytes += JSON.stringify(key).length + JSON.stringify(value).length;
+		for (const value of this.bibeltextCache.values()) {
+			bytes += value.markdown.length + value.title.length + (value.wolLink?.length ?? 0);
 		}
 		return { entries: this.bibeltextCache.size, bytes };
 	}
 
 	public clearCache(): void {
 		this.bibeltextCache.clear();
+		this.onCacheWrite?.();
+	}
+
+	public exportCache(): Record<string, Bibeltext> {
+		return Object.fromEntries(this.bibeltextCache);
+	}
+
+	public importCache(data: Record<string, Bibeltext>): void {
+		for (const [key, value] of Object.entries(data)) {
+			this.bibeltextCache.set(key, value);
+		}
 	}
 
 	public async getDisplayText(tag: string): Promise<string | ResolveError> {
@@ -138,6 +154,7 @@ export class BibelResolver {
 				wolLink,
 			};
 			this.bibeltextCache.set(ref.toRefNr(), chapterText);
+			this.onCacheWrite?.();
 			return chapterText;
 		}
 
@@ -155,6 +172,7 @@ export class BibelResolver {
 		};
 
 		this.bibeltextCache.set(ref.toRefNr(), text);
+		this.onCacheWrite?.();
 
 		return text;
 	}
