@@ -38,15 +38,15 @@ class SettingsTab extends PluginSettingTab {
 		let scanStatusEl: HTMLElement;
 
 		const scanSetting = new Setting(containerEl)
-			.setName('Scan for uncached tags')
+			.setName('Build cache')
 			.setDesc('Find all Bible tags in your vault and pre-fetch their content.')
 			.addButton(btn => {
-				btn.setButtonText('Scan').onClick(async () => {
+				btn.setButtonText('Build cache').onClick(async () => {
 					btn.setDisabled(true);
-					btn.setButtonText('Scanning…');
-					await this.scanAndCache(scanStatusEl);
+					btn.setButtonText('Building…');
+					await this.buildCache(scanStatusEl);
 					btn.setDisabled(false);
-					btn.setButtonText('Scan');
+					btn.setButtonText('Build cache');
 					this.display();
 				});
 			});
@@ -54,7 +54,7 @@ class SettingsTab extends PluginSettingTab {
 		scanStatusEl = scanSetting.descEl.createEl('div');
 	}
 
-	private async scanAndCache(statusEl: HTMLElement): Promise<void> {
+	private async buildCache(statusEl: HTMLElement): Promise<void> {
 		const files: TFile[] = this.app.vault.getMarkdownFiles();
 		const tagRegex = /#b\/\w+\/\d+(?:\/[\d-]+)?/g;
 		const allTags = new Set<string>();
@@ -66,19 +66,22 @@ class SettingsTab extends PluginSettingTab {
 		}
 
 		const tags = Array.from(allTags);
-		let fetched = 0;
+		statusEl.setText(`Fetching 0/${tags.length}…`);
+
+		let completed = 0;
 		let failed = 0;
 
-		for (let i = 0; i < tags.length; i++) {
-			statusEl.setText(`Fetching ${i + 1}/${tags.length}…`);
-			const result = await this.resolver.resolveText(tags[i]);
-			if (result.success) fetched++;
-			else failed++;
-		}
+		// Submit all at once — the proxy collects and batches them automatically.
+		await Promise.all(tags.map(async tag => {
+			const result = await this.resolver.resolveText(tag);
+			completed++;
+			if (!result.success) failed++;
+			statusEl.setText(`Fetching ${completed}/${tags.length}…`);
+		}));
 
 		const summary = failed > 0
-			? `Done: ${fetched} fetched, ${failed} failed.`
-			: `Done: ${fetched} tags fetched.`;
+			? `Done: ${completed - failed} fetched, ${failed} failed.`
+			: `Done: ${completed} tags fetched.`;
 		statusEl.setText(summary);
 	}
 }

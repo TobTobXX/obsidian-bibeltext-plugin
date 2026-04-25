@@ -9,7 +9,6 @@ import {
 import { createSettings } from "settings";
 import { BibelResolver } from "bibelresolver";
 import { SpaceRemover } from "space-remover";
-import { platform } from "os";
 
 export default class BibeltextPlugin extends Plugin {
 	private resolver: BibelResolver;
