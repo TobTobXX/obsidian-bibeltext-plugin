@@ -162,9 +162,9 @@ The plugin no longer reads book metadata from the API — abbreviations are embe
 The JW.org API accepts multiple verse references in one request (comma-separated in the URL path). `ApiProxy` exploits this to reduce network traffic:
 
 - Incoming `request(ref)` calls are queued
-- After **80 ms** of inactivity a batch request fires with up to **8 refs**
-- If more refs remain in the queue, the next batch is scheduled immediately
-- On failure: **3 attempts** with exponential backoff (500 ms, 1 s, 2 s)
+- After **80 ms** of inactivity (collection window) up to **4 batches** fire concurrently, each carrying up to **8 refs**
+- Workers drain the queue greedily — on success each worker immediately picks up the next batch without re-entering the collection window
+- On any failure: `maxConcurrent` is halved (floor, min 1), then the same refs are retried up to **3 times** with exponential backoff (500 ms, 1 s, 2 s); after all retries are exhausted the slot is released and the remaining queue continues
 - Results are broadcast via an RxJS `Subject`; each caller filters for its own ref
 
 The proxy does **not** cache — caching lives in `BibelResolver.bibeltextCache` (a `Map` keyed by the numeric ref string).
