@@ -65,7 +65,7 @@ export default class BibeltextPlugin extends Plugin {
 							);
 							return;
 						}
-						const abbr = await this.resolver.getDisplayText(tagtext);
+						const abbr = this.resolver.getDisplayText(bibeltext);
 						if (typeof abbr != "string") {
 							console.warn(
 								`[bibeltext] Couldn't render "${tagtext}":`,
@@ -179,7 +179,7 @@ class BibeltextPopover extends HoverPopover {
 function registerLongTouch(
 	plugin: Plugin,
 	element: HTMLElement,
-	callback: Function,
+	callback: () => void,
 ) {
 	let timer: number | null;
 

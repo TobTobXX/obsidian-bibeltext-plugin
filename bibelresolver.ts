@@ -2,9 +2,6 @@ import { ApiProxy, ApiResponse } from "api-proxy";
 import { sanitizeHTMLToDom } from "obsidian";
 import { GERMAN_BOOK_ABBREVIATIONS, GERMAN_BOOKS } from "books";
 
-const BASE_URL =
-	"https://www.jw.org/de/bibliothek/bibel/studienbibel/buecher/json/html/";
-
 export interface ResolveError {
 	success: false;
 	error: string;
@@ -90,6 +87,23 @@ class RefRange {
 	}
 }
 
+// Removes the leading verse/chapter number element from a paragraph and returns
+// its formatted markdown prefix (e.g. "&nbsp;&nbsp;**16**"). Returns "" if
+// no such element is present.
+function extractVersePrefix(para: Element): string {
+	if (para.children.length === 0) return "";
+	const firstChild = para.children[0];
+	if (firstChild.classList.contains("verseNum")) {
+		const text = "&nbsp;&nbsp;**" + firstChild.textContent + "**";
+		firstChild.remove();
+		return text;
+	} else if (firstChild.classList.contains("chapterNum")) {
+		firstChild.remove();
+		return "&nbsp;&nbsp;**1 **";
+	}
+	return "";
+}
+
 export class BibelResolver {
 	private bibeltextCache = new Map<string, Bibeltext>();
 	private proxy: ApiProxy = new ApiProxy();
@@ -122,20 +136,16 @@ export class BibelResolver {
 		}
 	}
 
-	public async getDisplayText(tag: string): Promise<string | ResolveError> {
-		const text = await this.resolveText(tag);
-		if (!text.success) return text;
-
-		const abbr = GERMAN_BOOK_ABBREVIATIONS[text.ref.first.book];
-		if (!abbr) return { success: false, error: `Unknown Book: ${tag}` };
-
-		return abbr + " " + text.citationVerseRange;
+	public getDisplayText(bibeltext: Bibeltext): string | ResolveError {
+		const abbr = GERMAN_BOOK_ABBREVIATIONS[bibeltext.ref.first.book];
+		if (!abbr) return { success: false, error: `Unknown Book: ${bibeltext.ref.first.book}` };
+		return abbr + " " + bibeltext.citationVerseRange;
 	}
 
 	public async resolveText(tag: string): Promise<Bibeltext | ResolveError> {
-		const ref: RefRange = await RefRange.fromTag(tag) as RefRange;
-		//@ts-ignore
-		if (ref.error) return ref;
+		const refOrError = await RefRange.fromTag(tag);
+		if (!(refOrError instanceof RefRange)) return refOrError;
+		const ref = refOrError;
 
 		if (this.bibeltextCache.has(ref.toRefNr())) {
 			return this.bibeltextCache.get(ref.toRefNr()) as Bibeltext;
@@ -160,7 +170,7 @@ export class BibelResolver {
 
 		const response: ApiResponse = await this.proxy.request(ref.toRefNr());
 
-		const markdown = this.renterToMarkdown(response.ranges[ref.toRefNr()]);
+		const markdown = this.renderToMarkdown(response.ranges[ref.toRefNr()]);
 
 		const text: Bibeltext = {
 			success: true,
@@ -177,7 +187,7 @@ export class BibelResolver {
 		return text;
 	}
 
-	private renterToMarkdown(data: ApiResponse["ranges"]["index"]): string {
+	private renderToMarkdown(data: ApiResponse["ranges"]["index"]): string {
 		let content = "";
 
 		const firstVerse = data.verses[0];
@@ -199,50 +209,26 @@ export class BibelResolver {
 
 		// Add verses
 		data.verses.forEach((verse) => {
-			// Create DOM tree
 			const dom = sanitizeHTMLToDom(verse.content);
 
-			Array.from(dom.children)
-				.forEach((para) => {
-					// Transform verse/chapter numbers
-					function checkAndReturnChapterNo(para: Element): string {
-						if (para.children.length == 0) return "";
-						const firstChild = para.children[0];
-						let text = "";
-						if (firstChild.classList.contains("verseNum")) {
-							text = "&nbsp;&nbsp;**" +
-								para.children[0].textContent + "**";
-							para.children[0].remove();
-						} else if (
-							firstChild.classList.contains("chapterNum")
-						) {
-							text = "&nbsp;&nbsp;**1 **";
-							para.children[0].remove();
-						}
-						return text;
-					}
-
-					// Render text
-					if (
-						para.classList.contains("parabreak") ||
-						para.classList.contains("newblock")
-					) {
-						content += "\n";
-					} else if (para.classList.contains("style-b")) {
-						content += checkAndReturnChapterNo(para);
-						content += para.textContent;
-					} else if (para.classList.contains("style-l")) {
-						content += `<span class="first indented">${
-							checkAndReturnChapterNo(para)
-						}${para.textContent}</span>`;
-					} else if (para.classList.contains("style-z")) {
-						// Paragraph number should never appear?
-						content +=
-							`<span class="indented">${para.textContent}</span>`;
-					} else {
-						console.error(`[bibeltext] Unknown paragraph type: "${para.className}"`);
-					}
-				});
+			Array.from(dom.children).forEach((para) => {
+				if (
+					para.classList.contains("parabreak") ||
+					para.classList.contains("newblock")
+				) {
+					content += "\n";
+				} else if (para.classList.contains("style-b")) {
+					content += extractVersePrefix(para);
+					content += para.textContent;
+				} else if (para.classList.contains("style-l")) {
+					content += `<span class="first indented">${extractVersePrefix(para)}${para.textContent}</span>`;
+				} else if (para.classList.contains("style-z")) {
+					// Paragraph number should never appear?
+					content += `<span class="indented">${para.textContent}</span>`;
+				} else {
+					console.error(`[bibeltext] Unknown paragraph type: "${para.className}"`);
+				}
+			});
 		});
 
 		// Remove duplicate line breaks (introduced by parabreak followed by

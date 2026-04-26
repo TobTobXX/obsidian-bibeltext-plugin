@@ -20,16 +20,10 @@ export class ApiProxy {
 		this.queue.push(ref);
 		if (!this.pendingRequest) {
 			this.scheduleRequest();
-			return firstValueFrom(
-				this.resultSubject
-					.pipe(filter((res) => !!res.ranges[ref]))
-			);
-		} else {
-			return firstValueFrom(
-				this.resultSubject
-					.pipe(filter((res) => !!res.ranges[ref]))
-			);
 		}
+		return firstValueFrom(
+			this.resultSubject.pipe(filter((res) => !!res.ranges[ref]))
+		);
 	}
 
 	private scheduleRequest() {
